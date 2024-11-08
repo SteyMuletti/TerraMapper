@@ -32,17 +32,15 @@
         let waypoints = [];
         let polyline = L.polyline([]).addTo(map);
 
-        // Handle map clicks to add waypoints
+        // Add waypoints to map by clicking
         map.on('click', function(e) {
             const { lat, lng } = e.latlng;
             waypoints.push([lat, lng]);
             L.marker([lat, lng]).addTo(map).bindPopup(`Waypoint ${waypoints.length}`).openPopup();
-
-            // Update polyline to connect waypoints
             polyline.setLatLngs(waypoints);
         });
 
-        // Send waypoints to backend
+        // Send waypoints to the backend
         function sendRouteToBackend() {
             fetch('/api/start_flight', {
                 method: 'POST',
@@ -51,8 +49,8 @@
                 },
                 body: JSON.stringify({
                     waypoints: waypoints,
-                    speeds: Array(waypoints.length).fill(20),  // Placeholder speeds
-                    rotations: Array(waypoints.length).fill(0)  // Placeholder rotations
+                    speeds: Array(waypoints.length).fill(20),
+                    rotations: Array(waypoints.length).fill(0)
                 })
             })
             .then(response => response.json())
@@ -69,7 +67,7 @@
             });
         }
 
-        // Add a button to trigger sending waypoints to backend
+        // Button to start the flight with the defined route
         const startButton = document.createElement('button');
         startButton.innerText = 'Start Flight with Route';
         startButton.onclick = sendRouteToBackend;
