@@ -1,76 +1,89 @@
 import time
 import logging
-from dji_sdk.dji_drone import DJIDrone  # Direct import if your DJI SDK is installed properly
+from djitellopy import Tello
 
-# Set up logging for troubleshooting and monitoring
+# Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class DroneControl:
-    def __init__(self, app_key):
-        """Initialize the DJI SDK Drone with App Key for authentication."""
-        self.drone = DJIDrone(app_key=app_key)  # Initialize with app key
+    def __init__(self):
+        self.drone = Tello()
         self.is_connected = False
 
     def connect(self):
-        """Connect to the DJI drone with error handling."""
+        """Connect to the drone with error handling"""
         try:
             logging.info("Attempting to connect to the drone...")
             self.drone.connect()
             self.is_connected = True
-            battery_level = self.drone.get_battery_percentage()  # Get battery level as feedback
-            logging.info(f"Drone connected: {battery_level}% battery")
+            logging.info(f"Drone connected: {self.drone.get_battery()}% battery")
         except Exception as e:
-            logging.error(f"Error connecting to the drone: {e}")
+            logging.error(f"Error while connecting to drone: {e}")
             self.is_connected = False
 
     def takeoff(self):
-        """Take off the drone with error handling."""
+        """Take off the drone with error handling"""
         try:
             if not self.is_connected:
-                raise Exception("Drone not connected.")
-            logging.info("Initiating takeoff...")
+                raise Exception("Drone is not connected.")
+            logging.info("Taking off...")
             self.drone.takeoff()
             time.sleep(5)  # Wait for the drone to stabilize
-            logging.info("Drone has successfully taken off.")
+            logging.info("Drone has taken off.")
         except Exception as e:
-            logging.error(f"Takeoff error: {e}")
-            self.land()  # Ensure safety by landing if any error occurs
+            logging.error(f"Error during takeoff: {e}")
+            self.land()
 
     def land(self):
-        """Land the drone safely with error handling."""
+        """Land the drone with error handling"""
         try:
             if not self.is_connected:
-                raise Exception("Drone not connected.")
-            logging.info("Initiating landing...")
+                raise Exception("Drone is not connected.")
+            logging.info("Landing the drone...")
             self.drone.land()
-            time.sleep(5)  # Ensure safe landing
-            logging.info("Drone has successfully landed.")
+            time.sleep(5)  # Wait for landing
+            logging.info("Drone has landed.")
         except Exception as e:
-            logging.error(f"Landing error: {e}")
+            logging.error(f"Error during landing: {e}")
+            self.drone.end()
 
-    def set_waypoints(self, waypoints):
-        """Set waypoints and navigate with error handling."""
+    def set_waypoints(self, waypoints, speeds, rotations):
+        """Set waypoints with speed and rotation, with error handling"""
         try:
             if not self.is_connected:
-                raise Exception("Drone not connected.")
-            for i, (x, y, z) in enumerate(waypoints):
-                logging.info(f"Navigating to waypoint {i + 1}: x={x}, y={y}, z={z}")
-                self.drone.go_to_location(x, y, z)  # Assuming this command exists in the DJI SDK
-                time.sleep(5)  # Adjust time as necessary based on waypoint distance
-                logging.info(f"Reached waypoint {i + 1}")
+                raise Exception("Drone is not connected.")
+            if len(waypoints) != len(speeds) or len(speeds) != len(rotations):
+                raise ValueError("Waypoints, speeds, and rotations must be the same length.")
+
+            for i, wp in enumerate(waypoints):
+                speed = speeds[i]
+                rotation = rotations[i]
+
+                logging.info(f"Flying to waypoint {i + 1}: {wp}, Speed: {speed} cm/s, Rotation: {rotation}°")
+
+                # Rotate to the target angle
+                self.drone.rotate_clockwise(rotation)
+                time.sleep(2)
+
+                # Fly to the waypoint (Note: Tello can only move in x/y/z axes at a specific speed)
+                self.drone.go_xyz_speed(wp[0], wp[1], wp[2], speed)
+                time.sleep(3)  # Wait for drone to reach the waypoint
+
+                logging.info(f"Arrived at waypoint {i + 1}: {wp}")
+
         except Exception as e:
             logging.error(f"Error in waypoint navigation: {e}")
-            self.land()  # Safely land in case of error
+            self.land()
 
     def disconnect(self):
-        """Safely disconnect from the drone."""
+        """Disconnect from the drone safely"""
         try:
             if self.is_connected:
                 logging.info("Disconnecting from the drone...")
-                self.drone.disconnect()
+                self.drone.end()
                 self.is_connected = False
-                logging.info("Drone successfully disconnected.")
+                logging.info("Drone disconnected.")
             else:
-                logging.warning("Drone is not currently connected.")
+                logging.warning("Drone is not connected.")
         except Exception as e:
-            logging.error(f"Disconnection error: {e}")
+            logging.error(f"Error during disconnection: {e}")
