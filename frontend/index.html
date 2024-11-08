@@ -4,45 +4,302 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Drone Map Upload</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <style>
-        #map { height: 500px; width: 100%; }
-        #uploadForm { margin: 20px 0; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        #uploadForm {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .custom-file-button {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #495057;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #map {
+            height: 600px;
+            width: 100%;
+            border-radius: 8px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .status-message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .status-message.error {
+            background-color: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .status-message.success {
+            background-color: #dcfce7;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status-message.loading {
+            background-color: #e0f2fe;
+            color: #0284c7;
+            border: 1px solid #bae6fd;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .map-controls {
+            margin: 10px 0;
+            display: flex;
+            gap: 10px;
+        }
+
+        .map-controls button {
+            background-color: #6c757d;
+            font-size: 14px;
+            padding: 8px 12px;
+        }
     </style>
 </head>
 <body>
-    <h1>Upload Your Drone Image</h1>
-    <form id="uploadForm" enctype="multipart/form-data">
-        <input type="file" name="image" id="imageInput" required />
-        <button type="submit">Upload</button>
-    </form>
+    <div class="container">
+        <h1>Drone Map Upload</h1>
+        
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="file-input-wrapper">
+                <div class="custom-file-button">Choose File</div>
+                <input type="file" name="image" id="imageInput" accept=".jpg,.jpeg,.png,.tif,.tiff" required />
+            </div>
+            <span id="fileNameDisplay">No file selected</span>
+            <button type="submit" id="uploadButton">Upload</button>
+        </form>
 
-    <div id="map"></div>
+        <div id="statusMessage"></div>
 
+        <div class="map-controls">
+            <button id="resetView" type="button">Reset View</button>
+            <button id="toggleOverlay" type="button" disabled>Toggle Overlay</button>
+        </div>
+
+        <div id="map"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <script>
-        var map = L.map('map').setView([51.505, -0.09], 13);  // Default location, will update after processing
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        class MapManager {
+            constructor() {
+                this.map = L.map('map').setView([51.505, -0.09], 13);
+                this.baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(this.map);
+                this.overlay = null;
+                this.initialView = {
+                    center: [51.505, -0.09],
+                    zoom: 13
+                };
 
-        // Handle form submission and image upload
-        document.getElementById("uploadForm").addEventListener("submit", function(event) {
-            event.preventDefault();
+                // Initialize map controls
+                this.setupMapControls();
+            }
 
-            var formData = new FormData();
-            formData.append("image", document.getElementById("imageInput").files[0]);
+            setupMapControls() {
+                document.getElementById('resetView').addEventListener('click', () => {
+                    this.resetView();
+                });
 
-            fetch('/upload_image', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.map_url) {
-                    // Add processed map as an overlay
-                    L.imageOverlay(data.map_url, [[51.5, -0.09], [51.6, -0.1]]).addTo(map);
+                document.getElementById('toggleOverlay').addEventListener('click', () => {
+                    this.toggleOverlay();
+                });
+            }
+
+            resetView() {
+                this.map.setView(this.initialView.center, this.initialView.zoom);
+            }
+
+            toggleOverlay() {
+                if (this.overlay) {
+                    if (this.map.hasLayer(this.overlay)) {
+                        this.map.removeLayer(this.overlay);
+                    } else {
+                        this.overlay.addTo(this.map);
+                    }
                 }
-            })
-            .catch(error => console.error("Error:", error));
+            }
+
+            addOverlay(imageUrl, bounds) {
+                if (this.overlay) {
+                    this.map.removeLayer(this.overlay);
+                }
+                this.overlay = L.imageOverlay(imageUrl, bounds);
+                this.overlay.addTo(this.map);
+                this.map.fitBounds(bounds);
+                document.getElementById('toggleOverlay').disabled = false;
+            }
+        }
+
+        class UploadManager {
+            constructor(mapManager) {
+                this.mapManager = mapManager;
+                this.form = document.getElementById('uploadForm');
+                this.fileInput = document.getElementById('imageInput');
+                this.uploadButton = document.getElementById('uploadButton');
+                this.statusMessage = document.getElementById('statusMessage');
+                this.fileNameDisplay = document.getElementById('fileNameDisplay');
+
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                this.form.addEventListener('submit', (e) => this.handleSubmit(e));
+                this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+            }
+
+            handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    this.fileNameDisplay.textContent = file.name;
+                } else {
+                    this.fileNameDisplay.textContent = 'No file selected';
+                }
+            }
+
+            setStatus(message, type = 'loading') {
+                this.statusMessage.className = `status-message ${type}`;
+                this.statusMessage.innerHTML = type === 'loading' 
+                    ? `<div class="loading-spinner"></div>${message}`
+                    : message;
+            }
+
+            async handleSubmit(event) {
+                event.preventDefault();
+                const formData = new FormData();
+                const file = this.fileInput.files[0];
+
+                if (!file) {
+                    this.setStatus('Please select a file first.', 'error');
+                    return;
+                }
+
+                formData.append('image', file);
+                this.uploadButton.disabled = true;
+                this.setStatus('Processing image... This may take a few minutes.');
+
+                try {
+                    const response = await fetch('/upload_image', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Upload failed');
+                    }
+
+                    if (data.map_url) {
+                        // For demo purposes, using fixed bounds - in production, these should come from the server
+                        const bounds = [[51.5, -0.09], [51.6, -0.1]];
+                        this.mapManager.addOverlay(data.map_url, bounds);
+                        this.setStatus('Map processed successfully!', 'success');
+                    }
+                } catch (error) {
+                    this.setStatus(`Error: ${error.message}`, 'error');
+                } finally {
+                    this.uploadButton.disabled = false;
+                }
+            }
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            const mapManager = new MapManager();
+            const uploadManager = new UploadManager(mapManager);
         });
     </script>
 </body>
