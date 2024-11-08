@@ -1,1 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TerraMapper</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+    <h1>Welcome to TerraMapper</h1>
+
+    <!-- Flight Plan Form -->
+    <h2>Flight Planning</h2>
+    <form id="flightPlanForm">
+        <label for="start">Start Location:</label>
+        <input type="text" id="start" name="start" required><br><br>
+        
+        <label for="end">End Location:</label>
+        <input type="text" id="end" name="end" required><br><br>
+        
+        <label for="waypoints">Waypoints (JSON format):</label><br>
+        <textarea id="waypoints" name="waypoints" rows="4" cols="50" required></textarea><br><br>
+        
+        <button type="submit">Plan Flight</button>
+    </form>
+
+    <!-- Upload Form -->
+    <h2>Upload Image</h2>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="imageFile" name="file" accept="image/*" required><br><br>
+        <button type="submit">Upload</button>
+    </form>
+
+    <script>
+        // Handle Flight Planning form submission
+        document.getElementById("flightPlanForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+            const data = {
+                start: document.getElementById("start").value,
+                end: document.getElementById("end").value,
+                waypoints: JSON.parse(document.getElementById("waypoints").value)
+            };
+            fetch('/plan-flight', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => alert("Flight planned successfully: " + JSON.stringify(data)))
+            .catch(error => alert("Error planning flight: " + error));
+        });
+
+        // Handle Image Upload form submission
+        document.getElementById("uploadForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append("file", document.getElementById("imageFile").files[0]);
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => alert("File uploaded successfully: " + JSON.stringify(data)))
+            .catch(error => alert("Error uploading file: " + error));
+        });
+    </script>
+</body>
+</html>
 
