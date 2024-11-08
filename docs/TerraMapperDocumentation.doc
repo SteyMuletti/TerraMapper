@@ -1,0 +1,111 @@
+1. Introduction
+TerraMapper is an open-source mapping tool designed for personal use and small businesses. It allows users to plan drone flights, capture aerial imagery, and process data into maps. This guide will assist you with setting up TerraMapper, creating flight plans, capturing images, and processing them into usable maps.
+
+
+2. System Requirements
+Backend: Python 3.8+ with Flask, OpenDroneMap (ODM) for image processing.
+Frontend: Leaflet.js for interactive mapping.
+Drone Compatibility: DJI drones, specifically including the DJI Air 2S.
+Dependencies:
+leaflet.js for maps
+DJI SDK for drone communication
+Additional Python libraries as specified in requirements.txt
+
+
+3. Installation Instructions
+Clone the Repository
+bash
+Copy code
+git clone https://github.com/yourusername/TerraMapper.git
+cd TerraMapper
+Install Backend Dependencies
+Create and Activate a Virtual Environment (optional but recommended):
+
+bash
+Copy code
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+Install Required Python Libraries:
+
+bash
+Copy code
+pip install -r requirements.txt
+Set Up OpenDroneMap (ODM):
+
+Follow instructions on OpenDroneMap’s website to set up ODM locally or on a server.
+Confirm that ODM is configured to receive and process image files.
+Start the Backend Server
+bash
+Copy code
+python app.py
+The server should start on http://localhost:5000.
+
+
+4. Frontend Setup and Access
+The frontend (interactive map) is located in frontend/index.html.
+Open this file in your browser after starting the backend server to access TerraMapper’s flight planning interface.
+
+
+5. Using TerraMapper
+
+5.1 Flight Planning
+Open the Map:
+
+Access the map through frontend/index.html.
+Define a Flight Path:
+
+Use the map interface to add waypoints. Click on the map to place a starting point and additional waypoints for the flight path.
+Each waypoint should represent a desired capture point for the drone.
+Set Parameters:
+
+Adjust speed, rotation, or other parameters to customize the flight behavior at each waypoint.
+Save the Flight Plan:
+
+Once your path is complete, save it to the backend by clicking Save Plan.
+
+5.2 Image Capture
+Initiate the Flight Plan:
+
+Select Start Flight to command the drone to follow the saved waypoints.
+The drone will automatically capture images at each waypoint, covering the target area.
+Data Storage:
+
+Images are stored locally or directly uploaded to TerraMapper (cloud setup may be required).
+
+5.3 Map Processing
+Upload Captured Images:
+
+After the flight, upload the images to TerraMapper’s backend via the Upload Images section.
+Run OpenDroneMap Processing:
+
+The backend will use ODM to process images and generate an orthomosaic (2D map) or other map types.
+View Processed Map:
+
+Once completed, the processed map is displayed on the frontend. You can zoom, pan, and interact with the map for further analysis.
+
+
+6. Advanced Features and Add-Ons
+Telemetry Visualization:
+
+View live drone telemetry, including real-time position tracking on the frontend map.
+Error Handling:
+
+TerraMapper includes error handling for issues such as connection loss, low battery, and waypoint errors, ensuring safe landing and data preservation.
+
+
+7. Testing
+Flight Path Testing:
+
+Run a simulated flight with a compatible DJI drone or a development kit (e.g., DJI Air 2S simulator).
+Image Processing Test:
+
+Upload a sample set of images to verify that OpenDroneMap produces expected outputs.
+
+
+8. Troubleshooting
+Connection Issues:
+
+If the drone fails to connect, check SDK compatibility and ensure the drone’s firmware is updated.
+ODM Processing Errors:
+
+Ensure OpenDroneMap is properly installed and accessible. Verify the input image formats and file paths.
