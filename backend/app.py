@@ -1,42 +1,49 @@
 from flask import Flask, request, jsonify
-from drone_sdk.drone_control import DroneControl
-import logging
+import os
+import subprocess
+import shutil
 
 app = Flask(__name__)
 
-# Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Folder to temporarily store uploaded images
+UPLOAD_FOLDER = 'uploads/'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
-# Initialize DroneControl object
-drone_control = DroneControl()
+# Folder to store processed maps
+PROCESSED_MAP_FOLDER = 'processed_maps/'
+if not os.path.exists(PROCESSED_MAP_FOLDER):
+    os.makedirs(PROCESSED_MAP_FOLDER)
 
-@app.route('/start_flight', methods=['POST'])
-def start_flight():
+@app.route('/upload_image', methods=['POST'])
+def upload_image():
     try:
-        data = request.json
-        waypoints = data.get('waypoints', [])
-        speeds = data.get('speeds', [])
-        rotations = data.get('rotations', [])
-        
-        if not waypoints or not speeds or not rotations:
-            return jsonify({"error": "Missing required fields: waypoints, speeds, or rotations"}), 400
-        
-        # Connect to the drone
-        drone_control.connect()
+        file = request.files['image']
+        if not file:
+            return jsonify({"error": "No file uploaded"}), 400
 
-        # Start the flight with waypoints
-        drone_control.takeoff()
-        drone_control.set_waypoints(waypoints, speeds, rotations)
-        drone_control.land()
-        
-        # Disconnect the drone
-        drone_control.disconnect()
+        filename = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(filename)
 
-        return jsonify({"status": "Flight completed successfully!"}), 200
-    
+        # Run ODM processing
+        processed_map = process_image_with_odm(filename)
+        
+        # Return the processed map URL (assuming ODM saved it in the 'processed_maps' folder)
+        map_url = f"/{processed_map}"
+        return jsonify({"map_url": map_url}), 200
+
     except Exception as e:
-        logging.error(f"Error during flight: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 400
+
+def process_image_with_odm(image_path):
+    # This is where you trigger ODM to process the image
+    # This command will vary based on your ODM installation and image processing script
+    output_path = os.path.join(PROCESSED_MAP_FOLDER, os.path.basename(image_path) + "_processed.tif")
+    
+    cmd = ["python3", "run_odm.py", image_path, "--output", output_path]
+    subprocess.run(cmd, check=True)
+    
+    return output_path
 
 if __name__ == '__main__':
     app.run(debug=True)
