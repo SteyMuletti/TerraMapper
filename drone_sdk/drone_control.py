@@ -1,13 +1,13 @@
 import time
-import logging
 from djitellopy import Tello
+import logging
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class DroneControl:
     def __init__(self):
-        self.drone = Tello()
+        self.drone = Tello()  # Change this to the DJI SDK for compatibility
         self.is_connected = False
 
     def connect(self):
@@ -60,12 +60,12 @@ class DroneControl:
                 rotation = rotations[i]
 
                 logging.info(f"Flying to waypoint {i + 1}: {wp}, Speed: {speed} cm/s, Rotation: {rotation}°")
-
+                
                 # Rotate to the target angle
                 self.drone.rotate_clockwise(rotation)
                 time.sleep(2)
 
-                # Fly to the waypoint (Note: Tello can only move in x/y/z axes at a specific speed)
+                # Fly to the waypoint
                 self.drone.go_xyz_speed(wp[0], wp[1], wp[2], speed)
                 time.sleep(3)  # Wait for drone to reach the waypoint
 
