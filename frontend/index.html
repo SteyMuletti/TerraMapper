@@ -6,90 +6,75 @@
     <title>TerraMapper - Interactive Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
     <style>
         #map {
-            height: 500px; /* Set the map height */
-            width: 100%;   /* Full width */
+            height: 500px;
+            width: 100%;
         }
     </style>
 </head>
 <body>
 
     <h1>TerraMapper: Flight Planning</h1>
-    <p>Click to add waypoints on the map for flight planning.</p>
-
-    <!-- Map Container -->
     <div id="map"></div>
 
     <script>
-        // Initialize the map
-        const map = L.map('map').setView([51.505, -0.09], 13); // Default coordinates (London)
-
-        // Set up the OpenStreetMap tile layer
+        const map = L.map('map').setView([51.505, -0.09], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        // Array to store waypoints
-        let waypoints = [];
+        let droneMarker = L.marker([51.505, -0.09]).addTo(map);
+        let socket = io.connect('http://' + document.domain + ':' + location.port);
 
-        // Function to handle adding waypoints
-        function onMapClick(e) {
-            const { lat, lng } = e.latlng;
-            const marker = L.marker([lat, lng]).addTo(map);
-            waypoints.push({ lat, lng });
+        // Listen for telemetry data from the server
+        socket.on('telemetry', function(data) {
+            let position = data.position; // {x, y, z}
+            let battery = data.battery;
+            console.log('Drone Position:', position);
+            console.log('Battery:', battery);
 
-            // Show the coordinates in the console for debugging
-            console.log('Waypoint added at:', lat, lng);
+            // Update the map with the drone's new position
+            droneMarker.setLatLng([position.lat, position.lng]);
+        });
 
-            // Display waypoints array (optional)
-            console.log(waypoints);
-        }
+        // Function to start flight
+        function startFlight() {
+            let waypoints = [[50, 0, 100], [100, 0, 100]];
+            let speeds = [30, 40];
+            let rotations = [0, 90];
 
-        // Listen for map click events to add waypoints
-        map.on('click', onMapClick);
-
-        // Function to send waypoints to the backend
-        function sendWaypoints() {
-            fetch('/api/waypoints', {
+            fetch('/api/start_flight', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ waypoints: waypoints }) // Send the waypoints as JSON
+                body: JSON.stringify({ waypoints: waypoints, speeds: speeds, rotations: rotations })
             })
             .then(response => response.json())
-            .then(data => {
-                console.log('Server Response:', data);
-                alert(data.message); // Alert the success message
+            .then(data => console.log(data.message));
+        }
+
+        // Function to land the drone
+        function landDrone() {
+            fetch('/api/land', {
+                method: 'POST',
             })
-            .catch(error => {
-                console.error('Error:', error);
-            });
+            .then(response => response.json())
+            .then(data => console.log(data.message));
         }
 
-        // Optional: Function to reset waypoints (for clearing the map)
-        function resetWaypoints() {
-            waypoints = [];
-            map.eachLayer(layer => {
-                if (layer instanceof L.Marker) {
-                    map.removeLayer(layer);
-                }
-            });
-            console.log('Waypoints reset');
-        }
+        // Button events for starting flight and landing
+        const startButton = document.createElement('button');
+        startButton.innerText = 'Start Flight';
+        startButton.onclick = startFlight;
+        document.body.appendChild(startButton);
 
-        // Optional: Buttons for submitting and resetting waypoints
-        const submitButton = document.createElement('button');
-        submitButton.innerText = 'Submit Waypoints';
-        submitButton.onclick = sendWaypoints;
-        document.body.appendChild(submitButton);
-
-        const resetButton = document.createElement('button');
-        resetButton.innerText = 'Reset Waypoints';
-        resetButton.onclick = resetWaypoints;
-        document.body.appendChild(resetButton);
-
+        const landButton = document.createElement('button');
+        landButton.innerText = 'Land Drone';
+        landButton.onclick = landDrone;
+        document.body.appendChild(landButton);
     </script>
 </body>
 </html>
