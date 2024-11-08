@@ -3,69 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drone Flight Planner</title>
+    <title>Drone Map Upload</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <style>
-        #map { height: 600px; }
+        #map { height: 500px; width: 100%; }
+        #uploadForm { margin: 20px 0; }
     </style>
 </head>
 <body>
-    <h1>Drone Flight Planner</h1>
+    <h1>Upload Your Drone Image</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" name="image" id="imageInput" required />
+        <button type="submit">Upload</button>
+    </form>
+
     <div id="map"></div>
-    <button id="startFlight">Start Flight</button>
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
     <script>
-        const map = L.map('map').setView([37.7749, -122.4194], 13);  // Default center (San Francisco)
+        var map = L.map('map').setView([51.505, -0.09], 13);  // Default location, will update after processing
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        
-        let waypoints = [];
-        let speeds = [];
-        let rotations = [];
 
-        // Handle click event to add waypoints
-        map.on('click', function(e) {
-            const lat = e.latlng.lat;
-            const lng = e.latlng.lng;
-            const altitude = 10;  // Fixed altitude (can be dynamic if needed)
-            waypoints.push([lat, lng, altitude]);
+        // Handle form submission and image upload
+        document.getElementById("uploadForm").addEventListener("submit", function(event) {
+            event.preventDefault();
 
-            // Add marker and line for the waypoint
-            L.marker([lat, lng]).addTo(map);
-            if (waypoints.length > 1) {
-                L.polyline(waypoints).addTo(map);
-            }
+            var formData = new FormData();
+            formData.append("image", document.getElementById("imageInput").files[0]);
 
-            // Set default speed and rotation for the waypoint
-            speeds.push(20); // Default speed (cm/s)
-            rotations.push(0); // Default rotation (degrees)
+            fetch('/upload_image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.map_url) {
+                    // Add processed map as an overlay
+                    L.imageOverlay(data.map_url, [[51.5, -0.09], [51.6, -0.1]]).addTo(map);
+                }
+            })
+            .catch(error => console.error("Error:", error));
         });
-
-        // Start flight button handler
-        document.getElementById("startFlight").onclick = function() {
-            if (waypoints.length > 0) {
-                fetch('/start_flight', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        waypoints: waypoints,
-                        speeds: speeds,
-                        rotations: rotations
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.status || data.error);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred.');
-                });
-            } else {
-                alert('Please add some waypoints on the map.');
-            }
-        };
     </script>
 </body>
 </html>
