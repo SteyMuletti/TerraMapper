@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TerraMapper - Flight Planning</title>
+    <title>TerraMapper - Flight Planner</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
@@ -15,51 +15,35 @@
         .error {
             color: red;
         }
-        .button {
-            padding: 10px;
-            margin: 10px;
-            font-size: 14px;
-        }
     </style>
 </head>
 <body>
 
-    <h1>TerraMapper: Flight Planning</h1>
+    <h1>TerraMapper: Flight Planner</h1>
     <div id="map"></div>
     <div id="errorMessage" class="error"></div>
 
     <script>
         const map = L.map('map').setView([51.505, -0.09], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
         let waypoints = [];
-        let polyline;
+        let polyline = L.polyline([]).addTo(map);
 
-        // Function to add a waypoint and update the polyline
-        map.on('click', function(event) {
-            const lat = event.latlng.lat;
-            const lng = event.latlng.lng;
-
-            // Add waypoint to the map
-            const marker = L.marker([lat, lng]).addTo(map);
+        // Handle map clicks to add waypoints
+        map.on('click', function(e) {
+            const { lat, lng } = e.latlng;
             waypoints.push([lat, lng]);
+            L.marker([lat, lng]).addTo(map).bindPopup(`Waypoint ${waypoints.length}`).openPopup();
 
-            // Update polyline
-            if (waypoints.length > 1) {
-                if (polyline) {
-                    polyline.setLatLngs(waypoints);
-                } else {
-                    polyline = L.polyline(waypoints, { color: 'blue' }).addTo(map);
-                }
-            }
+            // Update polyline to connect waypoints
+            polyline.setLatLngs(waypoints);
         });
 
-        function startFlight() {
-            const speeds = [20, 20];  // Placeholder speeds
-            const rotations = [90, -90];  // Placeholder rotations
-
+        // Send waypoints to backend
+        function sendRouteToBackend() {
             fetch('/api/start_flight', {
                 method: 'POST',
                 headers: {
@@ -67,8 +51,8 @@
                 },
                 body: JSON.stringify({
                     waypoints: waypoints,
-                    speeds: speeds,
-                    rotations: rotations
+                    speeds: Array(waypoints.length).fill(20),  // Placeholder speeds
+                    rotations: Array(waypoints.length).fill(0)  // Placeholder rotations
                 })
             })
             .then(response => response.json())
@@ -81,34 +65,15 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                document.getElementById('errorMessage').innerText = 'Error starting the flight';
+                document.getElementById('errorMessage').innerText = 'Error sending route to backend';
             });
         }
 
-        function landDrone() {
-            fetch('/api/land', {
-                method: 'POST',
-            })
-            .then(response => response.json())
-            .then(data => alert(data.message))
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('errorMessage').innerText = 'Error landing the drone';
-            });
-        }
-
-        // Add buttons to control flight
+        // Add a button to trigger sending waypoints to backend
         const startButton = document.createElement('button');
-        startButton.classList.add('button');
-        startButton.innerText = 'Start Flight';
-        startButton.onclick = startFlight;
+        startButton.innerText = 'Start Flight with Route';
+        startButton.onclick = sendRouteToBackend;
         document.body.appendChild(startButton);
-
-        const landButton = document.createElement('button');
-        landButton.classList.add('button');
-        landButton.innerText = 'Land Drone';
-        landButton.onclick = landDrone;
-        document.body.appendChild(landButton);
     </script>
 
 </body>
