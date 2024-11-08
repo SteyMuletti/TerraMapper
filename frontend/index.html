@@ -3,68 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TerraMapper</title>
+    <title>TerraMapper - Interactive Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        #map {
+            height: 500px; /* Set the map height */
+            width: 100%;   /* Full width */
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome to TerraMapper</h1>
 
-    <!-- Flight Plan Form -->
-    <h2>Flight Planning</h2>
-    <form id="flightPlanForm">
-        <label for="start">Start Location:</label>
-        <input type="text" id="start" name="start" required><br><br>
-        
-        <label for="end">End Location:</label>
-        <input type="text" id="end" name="end" required><br><br>
-        
-        <label for="waypoints">Waypoints (JSON format):</label><br>
-        <textarea id="waypoints" name="waypoints" rows="4" cols="50" required></textarea><br><br>
-        
-        <button type="submit">Plan Flight</button>
-    </form>
+    <h1>TerraMapper: Flight Planning</h1>
+    <p>Click to add waypoints on the map for flight planning.</p>
 
-    <!-- Upload Form -->
-    <h2>Upload Image</h2>
-    <form id="uploadForm" enctype="multipart/form-data">
-        <input type="file" id="imageFile" name="file" accept="image/*" required><br><br>
-        <button type="submit">Upload</button>
-    </form>
+    <!-- Map Container -->
+    <div id="map"></div>
 
     <script>
-        // Handle Flight Planning form submission
-        document.getElementById("flightPlanForm").addEventListener("submit", function(e) {
-            e.preventDefault();
-            const data = {
-                start: document.getElementById("start").value,
-                end: document.getElementById("end").value,
-                waypoints: JSON.parse(document.getElementById("waypoints").value)
-            };
-            fetch('/plan-flight', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => alert("Flight planned successfully: " + JSON.stringify(data)))
-            .catch(error => alert("Error planning flight: " + error));
-        });
+        // Initialize the map
+        const map = L.map('map').setView([51.505, -0.09], 13); // Default coordinates (London)
 
-        // Handle Image Upload form submission
-        document.getElementById("uploadForm").addEventListener("submit", function(e) {
-            e.preventDefault();
-            const formData = new FormData();
-            formData.append("file", document.getElementById("imageFile").files[0]);
-            fetch('/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => alert("File uploaded successfully: " + JSON.stringify(data)))
-            .catch(error => alert("Error uploading file: " + error));
-        });
+        // Set up the OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Array to store waypoints
+        let waypoints = [];
+
+        // Function to handle adding waypoints
+        function onMapClick(e) {
+            const { lat, lng } = e.latlng;
+            const marker = L.marker([lat, lng]).addTo(map);
+            waypoints.push({ lat, lng });
+
+            // Show the coordinates in the console for debugging
+            console.log('Waypoint added at:', lat, lng);
+
+            // Display waypoints array (optional)
+            console.log(waypoints);
+        }
+
+        // Listen for map click events to add waypoints
+        map.on('click', onMapClick);
+
+        // Optional: Function to reset waypoints (for clearing the map)
+        function resetWaypoints() {
+            waypoints = [];
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    map.removeLayer(layer);
+                }
+            });
+            console.log('Waypoints reset');
+        }
+
+        // Optional: Button to reset waypoints
+        const resetButton = document.createElement('button');
+        resetButton.innerText = 'Reset Waypoints';
+        resetButton.onclick = resetWaypoints;
+        document.body.appendChild(resetButton);
+
     </script>
 </body>
 </html>
-
