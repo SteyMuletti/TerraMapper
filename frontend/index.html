@@ -12,12 +12,16 @@
             height: 500px;
             width: 100%;
         }
+        .error {
+            color: red;
+        }
     </style>
 </head>
 <body>
 
     <h1>TerraMapper: Flight Planning</h1>
     <div id="map"></div>
+    <div id="errorMessage" class="error"></div>
 
     <script>
         const map = L.map('map').setView([51.505, -0.09], 13);
@@ -26,46 +30,62 @@
         }).addTo(map);
 
         let droneMarker = L.marker([51.505, -0.09]).addTo(map);
-        let socket = io.connect('http://' + document.domain + ':' + location.port);
+        let socket = io.connect('http://localhost:5000');
 
-        // Listen for telemetry data from the server
         socket.on('telemetry', function(data) {
-            let position = data.position; // {x, y, z}
-            let battery = data.battery;
-            console.log('Drone Position:', position);
-            console.log('Battery:', battery);
-
-            // Update the map with the drone's new position
-            droneMarker.setLatLng([position.lat, position.lng]);
+            if (data.position) {
+                const position = data.position; // Example: { lat: 51.505, lng: -0.09 }
+                droneMarker.setLatLng([position.lat, position.lng]);
+                console.log('Drone position:', position);
+            }
+            if (data.battery) {
+                console.log('Drone battery:', data.battery);
+            }
         });
 
-        // Function to start flight
         function startFlight() {
-            let waypoints = [[50, 0, 100], [100, 0, 100]];
-            let speeds = [30, 40];
-            let rotations = [0, 90];
+            const waypoints = [[51.505, -0.09], [51.515, -0.1]];
+            const speeds = [20, 20];
+            const rotations = [90, -90];
 
             fetch('/api/start_flight', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ waypoints: waypoints, speeds: speeds, rotations: rotations })
+                body: JSON.stringify({
+                    waypoints: waypoints,
+                    speeds: speeds,
+                    rotations: rotations
+                })
             })
             .then(response => response.json())
-            .then(data => console.log(data.message));
+            .then(data => {
+                if (data.message.includes('Failed')) {
+                    document.getElementById('errorMessage').innerText = data.message;
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('errorMessage').innerText = 'Error starting the flight';
+            });
         }
 
-        // Function to land the drone
         function landDrone() {
             fetch('/api/land', {
                 method: 'POST',
             })
             .then(response => response.json())
-            .then(data => console.log(data.message));
+            .then(data => alert(data.message))
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('errorMessage').innerText = 'Error landing the drone';
+            });
         }
 
-        // Button events for starting flight and landing
+        // Add buttons to control flight
         const startButton = document.createElement('button');
         startButton.innerText = 'Start Flight';
         startButton.onclick = startFlight;
@@ -76,5 +96,6 @@
         landButton.onclick = landDrone;
         document.body.appendChild(landButton);
     </script>
+
 </body>
 </html>
