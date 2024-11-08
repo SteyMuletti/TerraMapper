@@ -3,76 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TerraMapper - Flight Planner</title>
+    <title>Drone Flight Planner</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
     <style>
-        #map {
-            height: 500px;
-            width: 100%;
-        }
-        .error {
-            color: red;
-        }
+        #map { height: 600px; }
     </style>
 </head>
 <body>
-
-    <h1>TerraMapper: Flight Planner</h1>
+    <h1>Drone Flight Planner</h1>
     <div id="map"></div>
-    <div id="errorMessage" class="error"></div>
-
+    <button id="startFlight">Start Flight</button>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
-        const map = L.map('map').setView([51.505, -0.09], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
-
+        const map = L.map('map').setView([37.7749, -122.4194], 13);  // Default center (San Francisco)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        
         let waypoints = [];
-        let polyline = L.polyline([]).addTo(map);
+        let speeds = [];
+        let rotations = [];
 
-        // Add waypoints to map by clicking
+        // Handle click event to add waypoints
         map.on('click', function(e) {
-            const { lat, lng } = e.latlng;
-            waypoints.push([lat, lng]);
-            L.marker([lat, lng]).addTo(map).bindPopup(`Waypoint ${waypoints.length}`).openPopup();
-            polyline.setLatLngs(waypoints);
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+            const altitude = 10;  // Fixed altitude (can be dynamic if needed)
+            waypoints.push([lat, lng, altitude]);
+
+            // Add marker and line for the waypoint
+            L.marker([lat, lng]).addTo(map);
+            if (waypoints.length > 1) {
+                L.polyline(waypoints).addTo(map);
+            }
+
+            // Set default speed and rotation for the waypoint
+            speeds.push(20); // Default speed (cm/s)
+            rotations.push(0); // Default rotation (degrees)
         });
 
-        // Send waypoints to the backend
-        function sendRouteToBackend() {
-            fetch('/api/start_flight', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    waypoints: waypoints,
-                    speeds: Array(waypoints.length).fill(20),
-                    rotations: Array(waypoints.length).fill(0)
+        // Start flight button handler
+        document.getElementById("startFlight").onclick = function() {
+            if (waypoints.length > 0) {
+                fetch('/start_flight', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        waypoints: waypoints,
+                        speeds: speeds,
+                        rotations: rotations
+                    })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.message.includes('Failed')) {
-                    document.getElementById('errorMessage').innerText = data.message;
-                } else {
-                    alert(data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('errorMessage').innerText = 'Error sending route to backend';
-            });
-        }
-
-        // Button to start the flight with the defined route
-        const startButton = document.createElement('button');
-        startButton.innerText = 'Start Flight with Route';
-        startButton.onclick = sendRouteToBackend;
-        document.body.appendChild(startButton);
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.status || data.error);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred.');
+                });
+            } else {
+                alert('Please add some waypoints on the map.');
+            }
+        };
     </script>
-
 </body>
 </html>
