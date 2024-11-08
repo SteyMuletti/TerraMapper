@@ -49,6 +49,25 @@
         // Listen for map click events to add waypoints
         map.on('click', onMapClick);
 
+        // Function to send waypoints to the backend
+        function sendWaypoints() {
+            fetch('/api/waypoints', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ waypoints: waypoints }) // Send the waypoints as JSON
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Server Response:', data);
+                alert(data.message); // Alert the success message
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
         // Optional: Function to reset waypoints (for clearing the map)
         function resetWaypoints() {
             waypoints = [];
@@ -60,7 +79,12 @@
             console.log('Waypoints reset');
         }
 
-        // Optional: Button to reset waypoints
+        // Optional: Buttons for submitting and resetting waypoints
+        const submitButton = document.createElement('button');
+        submitButton.innerText = 'Submit Waypoints';
+        submitButton.onclick = sendWaypoints;
+        document.body.appendChild(submitButton);
+
         const resetButton = document.createElement('button');
         resetButton.innerText = 'Reset Waypoints';
         resetButton.onclick = resetWaypoints;
